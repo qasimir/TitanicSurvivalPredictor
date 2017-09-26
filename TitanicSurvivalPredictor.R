@@ -18,3 +18,18 @@ testingdata$Survived = rep(0,ncol(testingdata))
 firstApprox = data.frame(PassengerID = testingdata$PassengerId, Survived = testingdata$Survived) # create a data frame like so 
 write.csv(firstApprox, file = "firstApproximation.csv", row.names = FALSE)
 
+# moving on to the second approximation. This gives a 2d table of the number of femals and males who survived
+table(trainingdata$Sex, trainingdata$Survived)
+
+#giving the proportion of each sex who were likely to survive. the "1" here indicates that we are examining the proportions of the rows:
+prop.table(table(trainingdata$Sex, trainingdata$Survived), 1)
+
+# we now have a better approximation. Females were more likely to survive. Can update the prediction now
+#set the survival entries where Sex == female is true, to be true. The other entries are already for survival are already set to 0, so we don't need to worry about them  
+testingdata$Survived[testingdata$Sex == 'female'] = 1
+
+#and export second approximation:
+scndapprox = data.frame(passengerID = testingdata$PassengerId, Survived = testingdata$Survived)
+write.csv(scndapprox, file = "secondApproximation.csv", row.names = FALSE)
+
+
