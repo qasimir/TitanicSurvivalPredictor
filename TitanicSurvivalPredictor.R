@@ -32,4 +32,8 @@ testingdata$Survived[testingdata$Sex == 'female'] = 1
 scndapprox = data.frame(passengerID = testingdata$PassengerId, Survived = testingdata$Survived)
 write.csv(scndapprox, file = "secondApproximation.csv", row.names = FALSE)
 
+# 3rd approximation: factoring age into it as well 
+summary(trainingdata$Age)
+
+# make a variable which checks to see whether or not the passenger was a child
 
