@@ -36,4 +36,32 @@ write.csv(scndapprox, file = "secondApproximation.csv", row.names = FALSE)
 summary(trainingdata$Age)
 
 # make a variable which checks to see whether or not the passenger was a child
+trainingdata$Child = 0
+trainingdata$Child[trainingdata$Age < 18] = 1
+
+# Now use an aggregate. Target variable on the LHS of the tilde, and the categories on the right.
+# This subsets the frame for all of the different combinations of Sex and child. The result of this, is the sum of all the categories of people who survived.
+aggregate(Survived ~ Child + Sex, data = trainingdata, FUN = sum)
+
+# number of people in each subset, regardless of whether or not they survived:
+aggregate(Survived ~ Child + Sex, data = trainingdata, FUN = length)
+
+# now we want the proportion of people who survived, in each subset:
+aggregate(Survived ~ Child + Sex, data = trainingdata, FUN = function(x) {sum(x)/length(x)})
+
+# Children were more likely to survive if they were female, but that does not change our prediction, as the finer distinction does not add anything to the hypothesis.
+
+# let us now try for fare types. First, seperate them into distinct groups:
+trainingdata$FareType = ">30"
+trainingdata$FareType[trainingdata$Fare < 30] = "20-30"
+trainingdata$FareType[trainingdata$Fare < 20] = "10-20"
+trainingdata$FareType[trainingdata$Fare < 10] = "<10"
+
+# now see if there is anything interesting:
+aggregate(Survived ~ FareType + Pclass + Sex, data = trainingdata, FUN = function(x) {sum(x)/length(x)})
+
+# we can see from this that 3rd class females in the greater than 20 dollar fare range did worse off. Update for third prediction:
+testingdata$Survived[testingdata$Sex == 'female' & testingdata$Fare >=20 & testingdata$Pclass == 3] = 0
+thirdapprox = data.frame(passengerID = testingdata$PassengerId, Survived = testingdata$Survived)
+write.csv(scndapprox, file = "ThirdApproximation.csv", row.names = FALSE)
 
