@@ -65,3 +65,34 @@ testingdata$Survived[testingdata$Sex == 'female' & testingdata$Fare >=20 & testi
 thirdapprox = data.frame(passengerID = testingdata$PassengerId, Survived = testingdata$Survived)
 write.csv(scndapprox, file = "ThirdApproximation.csv", row.names = FALSE)
 
+#now we use descision trees to automate the proccess of splitting the data into segments.
+# import rpart (recursive partitioning and Regression Trees)
+library(rpart)
+
+# these will help with the visualisation
+install.packages("rattle")
+install.packages("rpart.plot")
+install.packages("RColorBrewer")
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+
+# once imported, we can use it in a similar manner to the aggregate function, but it does it with automation
+fit = rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked,
+            data = trainingdata,
+            method = "class")
+
+#we can plot the tree, and
+plot(fit)
+text(fit)
+
+# update the prediction:
+Prediction = predict(fit, testingdata, type = "class")
+submit = data.frame(PassengerId = testingdata$PassengerId, Survived = Prediction)
+write.csv(submit, file = "fourthOrderPrediction.csv", row.names = FALSE)
+
+
+
+
+
+
