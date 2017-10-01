@@ -70,12 +70,12 @@ write.csv(scndapprox, file = "ThirdApproximation.csv", row.names = FALSE)
 library(rpart)
 
 # these will help with the visualisation
-install.packages("rattle")
-install.packages("rpart.plot")
-install.packages("RColorBrewer")
-library(rattle)
-library(rpart.plot)
-library(RColorBrewer)
+#install.packages("rattle")
+#install.packages("rpart.plot")
+#install.packages("RColorBrewer")
+#library(rattle)
+#library(rpart.plot)
+#library(RColorBrewer)
 
 # once imported, we can use it in a similar manner to the aggregate function, but it does it with automation
 fit = rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked,
@@ -91,8 +91,63 @@ Prediction = predict(fit, testingdata, type = "class")
 submit = data.frame(PassengerId = testingdata$PassengerId, Survived = Prediction)
 write.csv(submit, file = "fourthOrderPrediction.csv", row.names = FALSE)
 
+# lets see what feature engineering we can do
+# first, lets combine the testing and training data, after tidying up a bit:
+trainingdata$Child = NULL
+trainingdata$FareType = NULL
+testingdata$Survived = NA
+combined = rbind(trainingdata, testingdata)
 
+# change the names from factors to characters:
+combined$Name = as.character(combined$Name)
 
+# the titles are comprised of surnames, then titles, then first names, delineated by a comma
+strsplit(combined$Name[1], split="[,.]")[[1]][2] # as an example of the first name
 
+# for all names:
+combined$Title = sapply(combined$Name, FUN = function(x) {strsplit(x, split="[,.]")[[1]][2]})
 
+# strip off all of the leading whitespace:
+combined$Title = sub(" ","", combined$Title)
 
+# there are some redundancies in the titles, so we can reduce them:
+# madame, and madmoiselle:
+combined$Title[combined$Title %in% c("Mme","Mlle")] = "Mlle"
+
+# male honourific
+combined$Title[combined$Title %in% c("Capt","Don","Jonkheer","Major","Col")] = "Sir"
+
+#female honourific
+combined$Title[combined$Title %in% c("Dona","Lady","the Countess")] = "Lady"
+
+#add a new feature, family size:
+combined$FamilySize = combined$SibSp + combined$Parch + 1
+
+#we can group people according to families, as needing to search for family members might have been a deciding factor as to whether an individual boarded a life raft
+#get the surnames
+combined$Surname = sapply(combined$Name, FUN=function(x){strsplit(x,split="[,.]")[[1]][1]})
+
+#assign every person a family ID:
+combined$FamilyID = paste(as.character(combined$FamilySize),combined$Surname, sep = "")
+
+#we want to separate the singles and pairs from the list of families, so we give them their own designation
+combined$FamilyID[combined$FamilySize <=2 ] = "Single/Pairs"
+
+table(combined$FamilyID)
+
+#looking at the table of families, there are some who have misreported their family sizes. Will need to clean this up
+famIDs = data.frame(table(combined$FamilyID))
+famIDs = famIDs[famIDs$Freq <= 2,]
+combined$FamilyID[combined$FamilyID %in% famIDs$Var1] = "Single/Pairs"
+combined$FamilyID = as.factor(combined$FamilyID)
+
+#goodie, now that we have got a list of people who are part of a family, we can split it apart, and do some predictions on the new variables
+trainingdata2 = combined[1:nrow(trainingdata),]
+testingdata2 = combined[(nrow(trainingdata)+1):nrow(combined),]
+
+# now grow a new descision tree with the updated info
+fit = rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + FamilySize,
+            data = trainingdata2,
+            method = "class")
+plot(fit)
+text(fit)
