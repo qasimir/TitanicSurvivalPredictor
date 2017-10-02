@@ -149,5 +149,69 @@ testingdata2 = combined[(nrow(trainingdata)+1):nrow(combined),]
 fit = rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + FamilySize,
             data = trainingdata2,
             method = "class")
-plot(fit)
-text(fit)
+
+# and make a fifth order prediction, based on the new engineered variables:
+Prediction = predict(fit, testingdata2, type = "class")
+submit = data.frame(PassengerId = testingdata2$PassengerId, Survived = Prediction)
+write.csv(submit, file = "FifthOrderPrediction.csv", row.names = FALSE)
+
+
+#part 6: random forests
+#download and install random forest
+install.packages('randomForest')
+library(randomForest)
+
+
+# first problem, is empty spaces in the data. Especially for age. rpart cannot handle this
+# We can fill this in with an Agefit, with the method being anova, as the age data is continuous:
+Agefit = rpart(Age ~ Pclass + Sex + SibSp + Parch + Fare + Embarked + Title,
+               data = combined[!is.na(combined$Age),],
+               method = "anova")
+               
+combined$Age[is.na(combined$Age)] = predict(Agefit, combined[is.na(combined$Age),])
+
+#Embarked and Fare also have some blanks
+
+#Southampton is the most common embarkment point, so we will put these into Southampton
+combined$Embarked[combined$Embarked == ""] = "S"
+combined$Fare[is.na(combined$Fare)] = median(combined$Fare, na.rm = TRUE)
+
+#our dataframe is now cleaned of blanks. we still have too many factors in Family ID to run this, however. Reducing the number of families: 
+
+combined$FamilyID2 = as.character(combined$FamilyID)
+combined$FamilyID2[combined$FamilySize <= 3] = 'SmallFamily'
+combined$FamilyID2 = factor(combined$FamilyID2)
+
+# Try converting titles to factors
+combined$Title = as.factor(combined$Title)
+
+#Now, we split the data again:
+trainingdata2 = combined[1:nrow(trainingdata),]
+testingdata2 = combined[(nrow(trainingdata)+1):nrow(combined),]
+
+#set a seed for the random forest
+set.seed(415)
+
+fit = randomForest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + FamilySize + FamilyID2,
+                   data=trainingdata2,
+                   importance = TRUE, 
+                   ntree=2000)
+
+# look at some of the metrics of the fit
+varImpPlot(fit)
+
+# there are also "conditional inference trees" shown below. 
+# They use statistical metrics to determine the nodes, and can handle more factors than random trees
+
+install.packages("party")
+library(party)
+
+fit = cforest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + FamilySize + FamilyID,
+              data=trainingdata2,
+              controls=cforest_unbiased(ntree=2000,mtry=3))
+
+Prediction = predict(fit, testingdata2, OOB=TRUE, type = "response")
+submit = data.frame(PassengerId = testingdata$PassengerId, Survived = Prediction)
+write.csv(submit, file = "SixthOrderPrediction.csv", row.names = FALSE)
+
+
